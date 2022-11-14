@@ -1,3 +1,9 @@
+sections: 
+
+- [cryptic](#cryptic)
+- [key](#key)
+- 
+
 # Cryptic
 
 ## The program
@@ -168,5 +174,8 @@ let's run the program again, but this time, we will use the string that we obtai
 ![image](https://user-images.githubusercontent.com/89386156/201513586-c0b352c6-c507-410c-8f71-3325eb58f89f.png)
 
 challenge solved.
+
+# Reverser (forwback)
+
 
 
