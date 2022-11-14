@@ -2,7 +2,7 @@ sections:
 
 - [cryptic](#cryptic)
 - [key](#key)
-- 
+- [Reverser](#forwback)
 
 # Cryptic
 
@@ -175,7 +175,7 @@ let's run the program again, but this time, we will use the string that we obtai
 
 challenge solved.
 
-# Reverser (forwback)
+# Forwback
 
 
 
