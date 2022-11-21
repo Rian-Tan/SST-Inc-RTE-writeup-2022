@@ -179,65 +179,93 @@ challenge solved.
 
 ### Writeup credit: [duckupus](https://github.com/Duckupus)
 
-#### This was done with ghidra reversing tool
+The binary that we get is not stripped of its symbols, allowing us to see the names of the functions.
+<br>
+The main function looks fairly standard, getting 100 characters of input using `scanf`.
 
-## Understanding the obfuscation
-
-1) ```(input[i] >> (j & 0x1f) & 1U)```
-
-```c
-(input[i] >> (j & 0x1f) & 1U)
-```
-
-The  (j & 0x1f) should not affect anything, as j doesn't get past 8, leaving `input[i] >> j & 1U`
-
-This seems like a shift, getting each bit of the input character, one at a time
-
-2) ```((input[i] >> j & 1U) != 0)```
+#### NOTE: depending on the linux/mac binary you are reversing, the logic is slightly different. However, it does the same thing.
+The `input` first gets modified by some code, before comparision, which looks something like this
 
 ```c
-((input[i] >> j & 1U) != 0)
+for (int i = 0; i < 0x18; i = i + 1) {
+	int tmp = 0;
+	for (int j = 0; j < 8; j = j + 1) {
+			tmp = tmp | (((int)input[i] >> (j & 0x1f) & 1U) != 0) << (7 - j & 0x1f);
+	}
+	input[i] = tmp;
+}
 ```
+This looks complicated, lets break it down a bit!
+<br>
+First, lets figure out a few things
+`i < 0x18` -> This is the length of the entire password it checks. It's the iterator
+`j < 8` -> This loop has a oneliner, but loops 8 times, I wonder what happens there?
 
-this checks if the bit is set
-
-3) ```... << (7 - j & 0x1f)```
+### Reversing the forback check function, pt. 1
+As there's a lot of things happening in that single line, lets break it down into a few portions.
+Without worrying too much about the magic that happens inside, we first look at it's output
+#### NOTE: `magic` means there is extra code, but it's not the focus right now.
+```
+tmp = tmp | (magic);
+```
+we have a `tmp` variable that is ORed each loop(for 8 times), which is then stores the value back into the input, `input[i] = tmp;`.
+This input is then checked with a global variable later in the code.
+<br>
+Now, we have this monster line. Lets work from outside in.
 
 ```c
-... << (7 - j & 0x1f)
+(((int)input[i] >> (j & 0x1f) & 1U) != 0) << (7 - j & 0x1f)
 ```
 
-once again, j & 0x1f gets the last bit of j.
-
-`... << (7 - j)`
-
-j cannot be more then 7
-
-4) ```local_89 = local_89 | ...```
-
+### Reversing the forback check function, pt. 2
+first,
 ```c
-local_89 = local_89 | ...
+((magic) != 0) << (7 - j & 0x1f)
 ```
-the final shift moves the bit back in place, but instead being at the front, and not the back
-going through some cases, the bits change as such
-
-```
-0000 0001 : 1000 0000
-0000 0010 : 0100 0000
-0000 0100 : 0010 0000
+Notice how whatever is in `magic`, we check if it is `0` or not. Meaning, no matter what `magic` does, we will either get a `1` or `0` output, which is left shifted by
+```c
+7 - j & 0x1f
 ```
 
-... so on
+### Reversing the forback check function, pt. 3
+#### NOTE: 0x1f -> 31
+now, as `j`, nor `7` will never be bigger then `0x1f`, we can ignore it.
+```c
+7 - j
+```
+this means at each loop for `j`, we are comparing `(magic) != 0`, and storing the result in `tmp`, with each iteration storing the result in a lower bit then the previous one.
+<br>
+Now, lets look at how the final part of the monster line works
 
-This means that the loop is reversing the bits, hence, via getting the password it is being compared to 
+### Reversing the forback check function, pt. 4
+```c
+input[i] >> (j & 0x1f) & 1U
+```
+This shifts the character bit by `j & 0x1f`, which doesn't do anything. Hence rewritten
+```c
+(input[i] >> j) & 1
+```
+this shifts the character to the right by `j` bits, and gets the value at the LSB.
 
-and reversing it again, it should return with the flag!
+The entire process looks something like this
+```
+assume input value of
+0000 0001 (base2)
+output:
+1000 0000 (base 2)
 
-below is the script used to solve the challenge:
+input
+0100 0000
+output
+0000 0010
+```
+Basically, the code flips the bits of the input.
+
+### solving the challenge (forback)
+phew! We've came a long way, and now, all that is left is to make the solve script, and hopefully all goes well.
 
 ```c
 #include <stdio.h>
-/* script from solving the challenge */
 
 char input[] = { 0x9a, 0x42, 0x72, 0xde, 0x4e, 0xcc, 0x6e, 0xa6, 0x4e, 0xce, 0x8c, 0x72, 0xe6, 0xb4, 0x2e, 0x16, 0xcc, 0xb4, 0x46, 0x96, 0x2a, 0xce, 0xbe, 0x00 };
 
