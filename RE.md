@@ -177,6 +177,80 @@ challenge solved.
 
 # Forwback
 
---- wip ---
+### Writeup credit: [duckupus](https://github.com/Duckupus)
 
+#### This was done with ghidra reversing tool
 
+## Understanding the obfuscation
+
+1) ```(input[i] >> (j & 0x1f) & 1U)```
+
+```c
+(input[i] >> (j & 0x1f) & 1U)
+```
+
+The  (j & 0x1f) should not affect anything, as j doesn't get past 8, leaving `input[i] >> j & 1U`
+
+This seems like a shift, getting each bit of the input character, one at a time
+
+2) ```((input[i] >> j & 1U) != 0)```
+
+```c
+((input[i] >> j & 1U) != 0)
+```
+
+this checks if the bit is set
+
+3) ```... << (7 - j & 0x1f)```
+
+```c
+... << (7 - j & 0x1f)
+```
+
+once again, j & 0x1f gets the last bit of j.
+
+`... << (7 - j)`
+
+j cannot be more then 7
+
+4) ```local_89 = local_89 | ...```
+
+```c
+local_89 = local_89 | ...
+```
+the final shift moves the bit back in place, but instead being at the front, and not the back
+going through some cases, the bits change as such
+
+```
+0000 0001 : 1000 0000
+0000 0010 : 0100 0000
+0000 0100 : 0010 0000
+```
+
+... so on
+
+This means that the loop is reversing the bits, hence, via getting the password it is being compared to 
+
+and reversing it again, it should return with the flag!
+
+below is the script used to solve the challenge:
+
+```c
+#include <stdio.h>
+/* script from solving the challenge */
+
+char input[] = { 0x9a, 0x42, 0x72, 0xde, 0x4e, 0xcc, 0x6e, 0xa6, 0x4e, 0xce, 0x8c, 0x72, 0xe6, 0xb4, 0x2e, 0x16, 0xcc, 0xb4, 0x46, 0x96, 0x2a, 0xce, 0xbe, 0x00 };
+
+int main() {
+	for (int i = 0; i < 0x18; i = i + 1) {
+		int tmp = 0;
+		for (int j = 0; j < 8; j = j + 1) {
+			tmp = tmp |
+				(((int)input[i] >> (j & 0x1f) & 1U) != 0) << (7 - j & 0x1f);
+		}
+		input[i] = tmp;
+	}
+	puts(input);
+	return 0;
+}
+```
