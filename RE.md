@@ -282,3 +282,5 @@ int main() {
 	return 0;
 }
 ```
+Result: `YBN{r3vers1Ng-th3-biTs}`
+😉
